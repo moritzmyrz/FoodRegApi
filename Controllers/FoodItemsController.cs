@@ -44,14 +44,27 @@ namespace FoodRegApi.Controllers
         // PUT: api/FoodItems/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutFoodItem(int id, FoodItem foodItem)
+        public async Task<IActionResult> PutFoodItem(int id, [FromBody] FoodItem foodItem)
         {
             if (id != foodItem.FoodItemId)
             {
-                return BadRequest();
+                return BadRequest("ID in URL does not match ID in payload.");
             }
 
-            _context.Entry(foodItem).State = EntityState.Modified;
+            var existingItem = await _context.FoodItems.FindAsync(id);
+            if (existingItem == null)
+            {
+                return NotFound("Food item not found.");
+            }
+
+            // Update only the necessary fields
+            existingItem.Name = foodItem.Name;
+            existingItem.Description = foodItem.Description;
+            existingItem.FoodCategoryId = foodItem.FoodCategoryId;
+            existingItem.Calories = foodItem.Calories;
+            existingItem.Protein = foodItem.Protein;
+            existingItem.Fat = foodItem.Fat;
+            existingItem.Carbohydrates = foodItem.Carbohydrates;
 
             try
             {
@@ -59,28 +72,25 @@ namespace FoodRegApi.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!FoodItemExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error updating the database.");
             }
 
             return NoContent();
         }
-
         // POST: api/FoodItems
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<FoodItem>> PostFoodItem(FoodItem foodItem)
+        public async Task<ActionResult<FoodItem>> PostFoodItem([FromBody] FoodItem foodItem)
         {
+            if (foodItem == null)
+            {
+                return BadRequest("Invalid food item data.");
+            }
+
             _context.FoodItems.Add(foodItem);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetFoodItem", new { id = foodItem.FoodItemId }, foodItem);
+            return CreatedAtAction(nameof(GetFoodItem), new { id = foodItem.FoodItemId }, foodItem);
         }
 
         // DELETE: api/FoodItems/5

@@ -44,14 +44,22 @@ namespace FoodRegApi.Controllers
         // PUT: api/FoodCategories/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutFoodCategory(int id, FoodCategory foodCategory)
+        public async Task<IActionResult> PutFoodCategory(int id, [FromBody] FoodCategory foodCategory)
         {
             if (id != foodCategory.FoodCategoryId)
             {
-                return BadRequest();
+                return BadRequest("ID in URL does not match ID in payload.");
             }
 
-            _context.Entry(foodCategory).State = EntityState.Modified;
+            var existingCategory = await _context.FoodCategories.FindAsync(id);
+            if (existingCategory == null)
+            {
+                return NotFound("Food category not found.");
+            }
+
+            // Update only necessary fields
+            existingCategory.Name = foodCategory.Name;
+            existingCategory.Description = foodCategory.Description;
 
             try
             {
@@ -59,14 +67,7 @@ namespace FoodRegApi.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!FoodCategoryExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return StatusCode(StatusCodes.Status500InternalServerError, "Error updating the database.");
             }
 
             return NoContent();
@@ -75,12 +76,17 @@ namespace FoodRegApi.Controllers
         // POST: api/FoodCategories
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<FoodCategory>> PostFoodCategory(FoodCategory foodCategory)
+        public async Task<ActionResult<FoodCategory>> PostFoodCategory([FromBody] FoodCategory foodCategory)
         {
+            if (foodCategory == null)
+            {
+                return BadRequest("Invalid food category data.");
+            }
+
             _context.FoodCategories.Add(foodCategory);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetFoodCategory", new { id = foodCategory.FoodCategoryId }, foodCategory);
+            return CreatedAtAction(nameof(GetFoodCategory), new { id = foodCategory.FoodCategoryId }, foodCategory);
         }
 
         // DELETE: api/FoodCategories/5
